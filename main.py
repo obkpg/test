@@ -7,6 +7,7 @@ from aiogram.types import Message
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
+import aiohttp
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -29,18 +30,19 @@ bot = Bot(
 dp = Dispatcher(storage=MemoryStorage())
 
 # VIDEO YUKLASH FOIZLAR BILAN
-async def download_video(url, filename, progress_callback):
-    response = requests.get(url, stream=True)
-    total = int(response.headers.get('content-length', 0))
-    downloaded = 0
 
-    with open(filename, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            if chunk:
-                f.write(chunk)
-                downloaded += len(chunk)
-                percent = int(downloaded * 100 / total)
-                await progress_callback(min(percent, 100))
+
+async def download_video(url, filename, progress_callback):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            total = int(resp.headers.get('Content-Length', 0))
+            downloaded = 0
+            with open(filename, 'wb') as f:
+                async for chunk in resp.content.iter_chunked(8192):
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    percent = int(downloaded * 100 / total)
+                    await progress_callback(min(percent, 100))
 
 # VIDEO YUBORISH TELETHON ORQALI
 async def send_with_progress(client, file_path, entity, progress_callback):
