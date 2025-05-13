@@ -8,15 +8,16 @@ from telethon.sessions import StringSession
 import aiohttp
 import os
 
-
 api_id = 29961525
 api_hash = '8287129c125fce6db2fb4419c1aa54f3'
 string = "1ApWapzMBuzA3vcQnj6wIiwzNUQVTss_K9ouKgs2d4S-kZE1XslbZl3T9kbOeVY8S1KZUOZCxBqp27PpWi4L3MsBtUOjQBclo76ySNXzcZLlqUBGofMfFdQ6eErbmPHj1lutppgfDbAo_8IasVz4Wys1ybl4iE7Eh-9F5lr-ZBA1wd6xGhodTnjAz-YYg_qmIV_s6ctvp5vT2Nnqng_My1OInRLj_4eThk8vYo7GcJWCJFwIk2jIlotnvLNbCM0pjNY9j1BIntB2qvGaOigk_asKRix_QxRPSiS2ky6DERWy_HW9lDdtps-EQW70kiHHYzq7d47VsgmsNIoSTwzDjPz35uygLQ3A="
 
 # BOT TOKEN VA FOYDALANUVCHI ID’LAR
-API_TOKEN = '7520948359:AAGnDLwkTM27AfEOT3wvOqkLdUj5Vb_2zkI'
+API_TOKEN = '7308065940:AAFSpxstyFlnoB3qXm5txfmTxPRug9hh7lw'
 ADMIN_ID = 6878918676
-TO_USER_ID = "@obk_pg"
+TO_USER_ID = "@meva_url"
+
+MONITOR_CHANNEL = -1002674988964  # @test_db kanalining ID raqami ("@" bilan emas, -100 bilan boshlanadi)
 
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
@@ -38,7 +39,7 @@ async def download_video(url, filename, progress_callback):
                     await progress_callback(min(percent, 100))
 
 # Yuborish funksiyasi (Telethon bilan foizli progress)
-async def send_with_progress(client, file_path, to_user, progress_callback):
+async def send_with_progress(client, file_path, to_user, progress_callback, cap):
     file_size = os.path.getsize(file_path)
     sent_bytes = 0
 
@@ -46,7 +47,7 @@ async def send_with_progress(client, file_path, to_user, progress_callback):
         percent = int(current * 100 / file_size)
         await progress_callback(min(percent, 100))
 
-    await client.send_file(to_user, file_path, progress_callback=callback)
+    await client.send_file(to_user, file_path, progress_callback=callback, caption=cap)
 
 # Video yuklab olish va yuborish funksiyasi
 async def process_video(user_id, url, message):
@@ -84,7 +85,7 @@ async def process_video(user_id, url, message):
     await safe_edit("⏫ Yuborilmoqda: <b>0%</b>")
     try:
         async with TelegramClient(StringSession(string), api_id, api_hash) as client:
-            await send_with_progress(client, filename, TO_USER_ID, update_upload_progress)
+            await send_with_progress(client, filename, TO_USER_ID, update_upload_progress, user_id)
         await safe_edit("✅ Video muvaffaqiyatli yuborildi.")
     except Exception as e:
         await safe_edit(f"❌ Yuborishda xatolik: {e}")
@@ -101,6 +102,27 @@ async def queue_worker():
         finally:
             active_users.discard(user_id)
             queue.task_done()
+
+# /start komandasi
+@dp.message(commands=['start'])
+async def start_handler(message: Message):
+    await message.answer("Salom! Men video yuklab beruvchi botman. Siz menga video havolasini yuboring, men uni yuklab kanalga yuboraman. So‘rovlar navbat asosida bajariladi.")
+
+# Kanalga tashlangan videoni kuzatish va adminni ogohlantirish
+@dp.channel_post()
+async def monitor_channel_post(message: Message):
+    if message.chat.id == MONITOR_CHANNEL and message.video:
+        msg_id = message.message_id
+        caption = message.caption or "Yo'q"
+        await bot.copy_message(
+            chat_id=caption,
+            from_chat_id=MONITOR_CHANNEL,
+            message_id=msg_id
+        )
+        await bot.send_message(ADMIN_ID, f"📥 Yangi video @test_db kanalida:
+
+ID: <code>{msg_id}</code>
+Caption: <i>{caption}</i>")
 
 # Botga yozilgan har qanday xabar uchun ishlovchi handler
 @dp.message()
