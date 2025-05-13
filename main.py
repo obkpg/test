@@ -16,7 +16,7 @@ api_hash = '8287129c125fce6db2fb4419c1aa54f3'
 string = "1ApWapzMBuzA3vcQnj6wIiwzNUQVTss_K9ouKgs2d4S-kZE1XslbZl3T9kbOeVY8S1KZUOZCxBqp27PpWi4L3MsBtUOjQBclo76ySNXzcZLlqUBGofMfFdQ6eErbmPHj1lutppgfDbAo_8IasVz4Wys1ybl4iE7Eh-9F5lr-ZBA1wd6xGhodTnjAz-YYg_qmIV_s6ctvp5vT2Nnqng_My1OInRLj_4eThk8vYo7GcJWCJFwIk2jIlotnvLNbCM0pjNY9j1BIntB2qvGaOigk_asKRix_QxRPSiS2ky6DERWy_HW9lDdtps-EQW70kiHHYzq7d47VsgmsNIoSTwzDjPz35uygLQ3A="
 
 # BOT TOKEN VA FOYDALANUVCHI ID’LAR
-API_TOKEN = '7943879989:AAGOOA2MdwSbFCgVIe4yb_4w9kNhwZVZvLI'
+API_TOKEN = '8042306409:AAFcy6RnbiGFiOksSFlkndCRMd-X3EZKiiE'
 ADMIN_ID = 6878918676
 TO_USER_ID = "@meva_url"
 
@@ -47,12 +47,11 @@ async def download_video(url, filename, progress_callback):
 async def send_with_progress(client, file_path, to_user, progress_callback, cap):
     file_size = os.path.getsize(file_path)
 
-    async def callback(current, total):
+    def callback(current, total):
         percent = int(current * 100 / file_size)
-        await progress_callback(min(percent, 100))
+        asyncio.create_task(progress_callback(min(percent, 100)))  # Asinxron progress ni chaqirish
 
     await client.send_file(to_user, file_path, progress_callback=callback, caption=cap)
-
 # Asosiy video ishlovchi funksiya
 async def process_video(user_id, url, message):
     filename = url.split("/")[-1]
