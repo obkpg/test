@@ -17,7 +17,7 @@ api_hash = '8287129c125fce6db2fb4419c1aa54f3'
 string = "1ApWapzMBuzA3vcQnj6wIiwzNUQVTss_K9ouKgs2d4S-kZE1XslbZl3T9kbOeVY8S1KZUOZCxBqp27PpWi4L3MsBtUOjQBclo76ySNXzcZLlqUBGofMfFdQ6eErbmPHj1lutppgfDbAo_8IasVz4Wys1ybl4iE7Eh-9F5lr-ZBA1wd6xGhodTnjAz-YYg_qmIV_s6ctvp5vT2Nnqng_My1OInRLj_4eThk8vYo7GcJWCJFwIk2jIlotnvLNbCM0pjNY9j1BIntB2qvGaOigk_asKRix_QxRPSiS2ky6DERWy_HW9lDdtps-EQW70kiHHYzq7d47VsgmsNIoSTwzDjPz35uygLQ3A="
 
 # BOT TOKEN VA FOYDALANUVCHI ID’LAR
-API_TOKEN = '8012426747:AAECB9OjumL4QWeNqJTnYLtW_3fFkm0uJYc'
+API_TOKEN = '7370977487:AAHEOqTT-UT672NphCL6jS1I7L3X0bX_ZYw'
 ADMIN_ID = 6878918676
 TO_USER_ID = "@obk_pg"
 
@@ -68,31 +68,40 @@ async def handle_link(message: Message):
     status_msg = await message.answer("⏬ Yuklab olinmoqda: <b>0%</b>")
 
     last_percent = {"download": -5, "upload": -5}
+    last_text = {"value": ""}
+
+    async def safe_edit(text):
+        if text != last_text["value"]:
+            last_text["value"] = text
+            try:
+                await status_msg.edit_text(text)
+            except Exception:
+                pass  # ignore same text error or others
 
     async def update_download_progress(p):
         if p - last_percent["download"] >= 5:
             last_percent["download"] = p
-            await status_msg.edit_text(f"⏬ Yuklab olinmoqda: <b>{p}%</b>")
+            await safe_edit(f"⏬ Yuklab olinmoqda: <b>{p}%</b>")
 
     async def update_upload_progress(p):
         if p - last_percent["upload"] >= 5:
             last_percent["upload"] = p
-            await status_msg.edit_text(f"⏫ Yuborilmoqda: <b>{p}%</b>")
+            await safe_edit(f"⏫ Yuborilmoqda: <b>{p}%</b>")
 
     try:
         await download_video(url, filename, update_download_progress)
     except Exception as e:
-        await status_msg.edit_text(f"❌ Yuklashda xatolik: {e}")
+        await safe_edit(f"❌ Yuklashda xatolik: {e}")
         return
 
-    await status_msg.edit_text("⏫ Yuborilmoqda: <b>0%</b>")
+    await safe_edit("⏫ Yuborilmoqda: <b>0%</b>")
 
     try:
         async with TelegramClient(StringSession(string), api_id, api_hash) as client:
             await send_with_progress(client, filename, TO_USER_ID, update_upload_progress)
-        await status_msg.edit_text("✅ Video muvaffaqiyatli yuborildi.")
+        await safe_edit("✅ Video muvaffaqiyatli yuborildi.")
     except Exception as e:
-        await status_msg.edit_text(f"❌ Yuborishda xatolik: {e}")
+        await safe_edit(f"❌ Yuborishda xatolik: {e}")
     finally:
         if os.path.exists(filename):
             os.remove(filename)
