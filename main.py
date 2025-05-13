@@ -6,6 +6,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import Message
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.client.default import DefaultBotProperties
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -15,15 +16,17 @@ api_id = 29961525
 api_hash = '8287129c125fce6db2fb4419c1aa54f3'
 string = "1ApWapzMBuzA3vcQnj6wIiwzNUQVTss_K9ouKgs2d4S-kZE1XslbZl3T9kbOeVY8S1KZUOZCxBqp27PpWi4L3MsBtUOjQBclo76ySNXzcZLlqUBGofMfFdQ6eErbmPHj1lutppgfDbAo_8IasVz4Wys1ybl4iE7Eh-9F5lr-ZBA1wd6xGhodTnjAz-YYg_qmIV_s6ctvp5vT2Nnqng_My1OInRLj_4eThk8vYo7GcJWCJFwIk2jIlotnvLNbCM0pjNY9j1BIntB2qvGaOigk_asKRix_QxRPSiS2ky6DERWy_HW9lDdtps-EQW70kiHHYzq7d47VsgmsNIoSTwzDjPz35uygLQ3A="
 
-# BOT TOKEN VA ID’LAR
-API_TOKEN = '8012426747:AAECB9OjumL4QWeNqJTnYLtW_3fFkm0uJYc'
-ADMIN_ID = 6878918676  # o‘zingizning Telegram ID’ingiz
-TO_USER_ID = "@obk_pg"  # qabul qiluvchi user
+# BOT TOKEN VA FOYDALANUVCHI ID’LAR
+API_TOKEN = '8188443282:AAF_SommfUjIbhlpoaqD9iG8z8kKfBXAjCQ'
+ADMIN_ID = 6878918676
+TO_USER_ID = "@obk_pg"
 
-# AIORGRAM SETUP
-bot = Bot(token=API_TOKEN, parse_mode=ParseMode.HTML)
+# AIORGRAM SETUP (3.7+ versiyaga mos)
+bot = Bot(
+    token=API_TOKEN,
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
 dp = Dispatcher(storage=MemoryStorage())
-
 
 # VIDEO YUKLASH FOIZLAR BILAN
 async def download_video(url, filename, progress_callback):
@@ -39,8 +42,7 @@ async def download_video(url, filename, progress_callback):
                 percent = int(downloaded * 100 / total)
                 await progress_callback(min(percent, 100))
 
-
-# VIDEO YUBORISH TELETHON BILAN
+# VIDEO YUBORISH TELETHON ORQALI
 async def send_with_progress(client, file_path, entity, progress_callback):
     async def callback(current, total):
         percent = int(current * 100 / total)
@@ -53,8 +55,7 @@ async def send_with_progress(client, file_path, entity, progress_callback):
         progress_callback=callback
     )
 
-
-# BOTGA KELGAN XABARNI QAYTA ISHLASH
+# XABARNI QAYTA ISHLASH
 @dp.message()
 async def handle_link(message: Message):
     if message.from_user.id != ADMIN_ID:
@@ -89,7 +90,6 @@ async def handle_link(message: Message):
     finally:
         if os.path.exists(filename):
             os.remove(filename)
-
 
 # BOTNI ISHGA TUSHURISH
 async def main():
