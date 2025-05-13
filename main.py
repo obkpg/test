@@ -45,8 +45,8 @@ async def handle_link(message: Message):
     await message.answer("Video yuborilmoqda...")
 
     try:
-        with TelegramClient(StringSession(string), api_id, api_hash) as client:
-            client.send_file(TO_USER_ID, filename, caption="Mana video")
+        async with TelegramClient(StringSession(string), api_id, api_hash) as client:
+            await client.send_file(TO_USER_ID, filename, caption="Mana video")
         await message.answer("Yuborildi.")
     except Exception as e:
         await message.answer(f"Yuborishda xatolik: {e}")
