@@ -88,7 +88,8 @@ async def process_video(user_id, url, message):
     await safe_edit("⏫ Yuborilmoqda: <b>0%</b>")
     try:
         async with TelegramClient(StringSession(string), api_id, api_hash) as client:
-            await send_with_progress(client, filename, TO_USER_ID, update_upload_progress, user_id)
+            await send_with_progress(client, filename, TO_USER_ID, update_upload_progress, str(user_id))
+            
         await safe_edit("✅ Video muvaffaqiyatli yuborildi.")
     except Exception as e:
         await safe_edit(f"❌ Yuborishda xatolik: {e}")
