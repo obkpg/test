@@ -1,19 +1,22 @@
 import asyncio
-from aiogram import Bot, Dispatcher, types
+import os
+import aiohttp
+
+from aiogram import Bot, Dispatcher, F, Router
 from aiogram.types import Message
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
+
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
-import aiohttp
-import os
 
+# Konfiguratsiya (os.environ yoki .env tavsiya etiladi)
 api_id = 29961525
 api_hash = '8287129c125fce6db2fb4419c1aa54f3'
 string = "1ApWapzMBuzA3vcQnj6wIiwzNUQVTss_K9ouKgs2d4S-kZE1XslbZl3T9kbOeVY8S1KZUOZCxBqp27PpWi4L3MsBtUOjQBclo76ySNXzcZLlqUBGofMfFdQ6eErbmPHj1lutppgfDbAo_8IasVz4Wys1ybl4iE7Eh-9F5lr-ZBA1wd6xGhodTnjAz-YYg_qmIV_s6ctvp5vT2Nnqng_My1OInRLj_4eThk8vYo7GcJWCJFwIk2jIlotnvLNbCM0pjNY9j1BIntB2qvGaOigk_asKRix_QxRPSiS2ky6DERWy_HW9lDdtps-EQW70kiHHYzq7d47VsgmsNIoSTwzDjPz35uygLQ3A="
 
 # BOT TOKEN VA FOYDALANUVCHI ID’LAR
-API_TOKEN = '8174517399:AAFgkcFgzWhtPJTKvuBcVpgTby7vcjylUt0'
+API_TOKEN = '7943879989:AAGOOA2MdwSbFCgVIe4yb_4w9kNhwZVZvLI'
 ADMIN_ID = 6878918676
 TO_USER_ID = "@meva_url"
 
@@ -21,11 +24,13 @@ MONITOR_CHANNEL = -1002674988964  # @test_db kanalining ID raqami ("@" bilan ema
 
 bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
+router = Router()
+dp.include_router(router)
 
 queue = asyncio.Queue()
 active_users = set()
 
-# Yuklab olish funksiyasi (aiohttp bilan, foiz ko'rsatadi)
+# Yuklab olish funksiyasi
 async def download_video(url, filename, progress_callback):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
@@ -38,10 +43,9 @@ async def download_video(url, filename, progress_callback):
                     percent = int(downloaded * 100 / total)
                     await progress_callback(min(percent, 100))
 
-# Yuborish funksiyasi (Telethon bilan foizli progress)
+# Yuborish funksiyasi
 async def send_with_progress(client, file_path, to_user, progress_callback, cap):
     file_size = os.path.getsize(file_path)
-    sent_bytes = 0
 
     async def callback(current, total):
         percent = int(current * 100 / file_size)
@@ -49,7 +53,7 @@ async def send_with_progress(client, file_path, to_user, progress_callback, cap)
 
     await client.send_file(to_user, file_path, progress_callback=callback, caption=cap)
 
-# Video yuklab olish va yuborish funksiyasi
+# Asosiy video ishlovchi funksiya
 async def process_video(user_id, url, message):
     filename = url.split("/")[-1]
     status_msg = await message.answer("⏬ Navbatda kutyapti...")
@@ -93,7 +97,7 @@ async def process_video(user_id, url, message):
         if os.path.exists(filename):
             os.remove(filename)
 
-# Navbat ishlovchi task
+# Navbat uchun ishchi task
 async def queue_worker():
     while True:
         user_id, url, message = await queue.get()
@@ -104,24 +108,19 @@ async def queue_worker():
             queue.task_done()
 
 # /start komandasi
-@dp.message(commands=['start'])
+@router.message(F.text == "/start")
 async def start_handler(message: Message):
-    await message.answer("Salom! Men video yuklab beruvchi botman. Siz menga video havolasini yuboring, men uni yuklab kanalga yuboraman. So‘rovlar navbat asosida bajariladi.")
+    await message.answer("Salom! Menga video havolasini yuboring, men uni yuklab kanalga yuboraman.")
 
-# Kanalga tashlangan videoni kuzatish va adminni ogohlantirish
-@dp.channel_post()
+# Kanal post kuzatuvchi
+@router.channel_post()
 async def monitor_channel_post(message: Message):
     if message.chat.id == MONITOR_CHANNEL and message.video:
-        msg_id = message.message_id
         caption = message.caption or "Yo'q"
-        await bot.copy_message(
-            chat_id=caption,
-            from_chat_id=MONITOR_CHANNEL,
-            message_id=msg_id
-        )
+        await bot.copy_message(chat_id=caption, from_chat_id=MONITOR_CHANNEL, message_id=message.message_id)
 
-# Botga yozilgan har qanday xabar uchun ishlovchi handler
-@dp.message()
+# Video so‘rovi
+@router.message()
 async def handle_request(message: Message):
     user_id = message.from_user.id
     url = message.text.strip()
@@ -148,5 +147,6 @@ async def main():
     asyncio.create_task(queue_worker())
     await dp.start_polling(bot)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())
+    
