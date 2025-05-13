@@ -38,6 +38,13 @@ async def handle_link(message: Message):
     filename = url.split("/")[-1]
 
     try:
+        await message.answer("Kutib tur")
+        with TelegramClient(StringSession(string), api_id, api_hash) as client:
+            download_video(url, filename)
+            print("Telegramga yuborilmoqda...")
+            client.send_file(TO_USER_ID, filename, caption="Mana video!")
+            os.remove(filename)
+            print("Tugatildi.")
         await message.answer(url)
     except Exception as e:
         await message.answer(f"Xatolik: {e}")
