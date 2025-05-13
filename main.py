@@ -1,18 +1,14 @@
 import asyncio
-import requests
-import os
-
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, types
 from aiogram.types import Message
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
-import aiohttp
-
-from telethon import TelegramClient
+from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
+import aiohttp
+import os
 
-# TELEGRAM API MA'LUMOTLARI
+
 api_id = 29961525
 api_hash = '8287129c125fce6db2fb4419c1aa54f3'
 string = "1ApWapzMBuzA3vcQnj6wIiwzNUQVTss_K9ouKgs2d4S-kZE1XslbZl3T9kbOeVY8S1KZUOZCxBqp27PpWi4L3MsBtUOjQBclo76ySNXzcZLlqUBGofMfFdQ6eErbmPHj1lutppgfDbAo_8IasVz4Wys1ybl4iE7Eh-9F5lr-ZBA1wd6xGhodTnjAz-YYg_qmIV_s6ctvp5vT2Nnqng_My1OInRLj_4eThk8vYo7GcJWCJFwIk2jIlotnvLNbCM0pjNY9j1BIntB2qvGaOigk_asKRix_QxRPSiS2ky6DERWy_HW9lDdtps-EQW70kiHHYzq7d47VsgmsNIoSTwzDjPz35uygLQ3A="
@@ -22,16 +18,13 @@ API_TOKEN = '7797313452:AAGihsslrmM8YFV51Y-iBsCxVIpkzSffUQw'
 ADMIN_ID = 6878918676
 TO_USER_ID = "@obk_pg"
 
-# AIORGRAM SETUP (3.7+ versiyaga mos)
-bot = Bot(
-    token=API_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-)
-dp = Dispatcher(storage=MemoryStorage())
+bot = Bot(token=API_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+dp = Dispatcher()
 
-# VIDEO YUKLASH FOIZLAR BILAN
+queue = asyncio.Queue()
+active_users = set()
 
-
+# Yuklab olish funksiyasi (aiohttp bilan, foiz ko'rsatadi)
 async def download_video(url, filename, progress_callback):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
@@ -44,30 +37,21 @@ async def download_video(url, filename, progress_callback):
                     percent = int(downloaded * 100 / total)
                     await progress_callback(min(percent, 100))
 
-# VIDEO YUBORISH TELETHON ORQALI
-async def send_with_progress(client, file_path, entity, progress_callback):
+# Yuborish funksiyasi (Telethon bilan foizli progress)
+async def send_with_progress(client, file_path, to_user, progress_callback):
+    file_size = os.path.getsize(file_path)
+    sent_bytes = 0
+
     async def callback(current, total):
-        percent = int(current * 100 / total)
+        percent = int(current * 100 / file_size)
         await progress_callback(min(percent, 100))
 
-    await client.send_file(
-        entity,
-        file_path,
-        caption="Mana video",
-        progress_callback=callback
-    )
+    await client.send_file(to_user, file_path, progress_callback=callback)
 
-# XABARNI QAYTA ISHLASH
-@dp.message()
-async def handle_link(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("⛔ Sizga ruxsat berilmagan.")
-        return
-
-    url = message.text.strip()
+# Video yuklab olish va yuborish funksiyasi
+async def process_video(user_id, url, message):
     filename = url.split("/")[-1]
-
-    status_msg = await message.answer("⏬ Yuklab olinmoqda: <b>0%</b>")
+    status_msg = await message.answer("⏬ Navbatda kutyapti...")
 
     last_percent = {"download": -5, "upload": -5}
     last_text = {"value": ""}
@@ -77,8 +61,8 @@ async def handle_link(message: Message):
             last_text["value"] = text
             try:
                 await status_msg.edit_text(text)
-            except Exception:
-                pass  # ignore same text error or others
+            except:
+                pass
 
     async def update_download_progress(p):
         if p - last_percent["download"] >= 5:
@@ -91,13 +75,13 @@ async def handle_link(message: Message):
             await safe_edit(f"⏫ Yuborilmoqda: <b>{p}%</b>")
 
     try:
+        await safe_edit("⏬ Yuklab olinmoqda: <b>0%</b>")
         await download_video(url, filename, update_download_progress)
     except Exception as e:
         await safe_edit(f"❌ Yuklashda xatolik: {e}")
         return
 
     await safe_edit("⏫ Yuborilmoqda: <b>0%</b>")
-
     try:
         async with TelegramClient(StringSession(string), api_id, api_hash) as client:
             await send_with_progress(client, filename, TO_USER_ID, update_upload_progress)
@@ -108,9 +92,43 @@ async def handle_link(message: Message):
         if os.path.exists(filename):
             os.remove(filename)
 
-# BOTNI ISHGA TUSHURISH
+# Navbat ishlovchi task
+async def queue_worker():
+    while True:
+        user_id, url, message = await queue.get()
+        try:
+            await process_video(user_id, url, message)
+        finally:
+            active_users.discard(user_id)
+            queue.task_done()
+
+# Botga yozilgan har qanday xabar uchun ishlovchi handler
+@dp.message()
+async def handle_request(message: Message):
+    user_id = message.from_user.id
+    url = message.text.strip()
+
+    if url.startswith("/cancel"):
+        if user_id in active_users:
+            active_users.discard(user_id)
+            await message.answer("❌ So‘rovingiz bekor qilindi.")
+        else:
+            await message.answer("ℹ️ Sizda faol so‘rov yo‘q.")
+        return
+
+    if user_id in active_users:
+        await message.answer("❗ Sizda faol so‘rov bor. Iltimos, uni tugashini kuting.")
+        return
+
+    active_users.add(user_id)
+    await queue.put((user_id, url, message))
+    navbat_joyi = queue.qsize()
+    await message.answer(f"✅ So‘rovingiz navbatga qo‘shildi. Navbatda: {navbat_joyi}")
+
+# Botni ishga tushurish
 async def main():
+    asyncio.create_task(queue_worker())
     await dp.start_polling(bot)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     asyncio.run(main())
