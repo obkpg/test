@@ -18,7 +18,7 @@ string = "1ApWapzMBuzA3vcQnj6wIiwzNUQVTss_K9ouKgs2d4S-kZE1XslbZl3T9kbOeVY8S1KZUO
 # BOT TOKEN VA FOYDALANUVCHI ID’LAR
 API_TOKEN = '7382008769:AAE4wi_laGr2LhG0zUuodWFuiDOn55CkrNQ'
 ADMIN_ID = 6878918676
-TO_USER_ID = "@meva_url"
+TO_USER_ID = "meva_url"
 
 MONITOR_CHANNEL = -1002674988964  # @test_db kanalining ID raqami ("@" bilan emas, -100 bilan boshlanadi)
 
