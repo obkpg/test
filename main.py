@@ -67,8 +67,17 @@ async def handle_link(message: Message):
 
     status_msg = await message.answer("⏬ Yuklab olinmoqda: <b>0%</b>")
 
+    last_percent = {"download": -1, "upload": -1}
+
     async def update_download_progress(p):
-        await status_msg.edit_text(f"⏬ Yuklab olinmoqda: <b>{p}%</b>")
+        if p != last_percent["download"]:
+            last_percent["download"] = p
+            await status_msg.edit_text(f"⏬ Yuklab olinmoqda: <b>{p}%</b>")
+
+    async def update_upload_progress(p):
+        if p != last_percent["upload"]:
+            last_percent["upload"] = p
+            await status_msg.edit_text(f"⏫ Yuborilmoqda: <b>{p}%</b>")
 
     try:
         await download_video(url, filename, update_download_progress)
@@ -77,9 +86,6 @@ async def handle_link(message: Message):
         return
 
     await status_msg.edit_text("⏫ Yuborilmoqda: <b>0%</b>")
-
-    async def update_upload_progress(p):
-        await status_msg.edit_text(f"⏫ Yuborilmoqda: <b>{p}%</b>")
 
     try:
         async with TelegramClient(StringSession(string), api_id, api_hash) as client:
